@@ -3,6 +3,13 @@ import './App.css'
 import QuestionList from './components/QuestionList';
 import QuizControls from './components/QuizControls';
 import axios from 'axios';
+import Loader from './components/Loader'
+
+
+
+const shuffleAnswers = (answers) => {
+  return answers.sort(() => Math.random() - 0.5);
+};
 
 const fetchQuestions = async () => {
   try {
@@ -17,15 +24,6 @@ const fetchQuestions = async () => {
   }
 };
 
-const shuffleAnswers = (answers) => {
-  return answers.sort(() => Math.random() - 0.5);
-};
-
-const Loader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="w-10 h-10 border-4 border-indigo-700 border-solid rounded-full border-t-transparent animate-spin"></div>
-  </div>
-);
 
 function App() {
   const [questions, setQuestions] = useState([]);
@@ -34,6 +32,9 @@ function App() {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+
+  
+
 
   const handleStartQuiz = async () => {
     setLoading(true);
@@ -59,11 +60,34 @@ function App() {
     setIsQuizSubmitted(true);
   };
 
-  const handlePlayAgain = () => {
+  const handlePlayAgain = async() => {
     setSelectedAnswers({});
     setIsQuizSubmitted(false);
     setScore(0);
-    setQuizStarted(false);
+    setLoading(true);
+    try {
+      const response = await fetch('https://opentdb.com/api.php?amount=5&category=18&difficulty=medium&type=multiple');
+      if (response.status === 429) {
+        console.log('Too many requests. Please wait.');
+        // Retry after a delay of 5 seconds
+        setTimeout(handlePlayAgain, 5000); // Wait for 5 seconds before retrying
+      } else if (response.ok) {
+        const data = await response.json();
+        const formattedQuestions = data.results.map((question) => ({
+          question: question.question,
+          correct_answer: question.correct_answer,
+          all_answers: shuffleAnswers([question.correct_answer, ...question.incorrect_answers]),
+        }));
+        setQuestions(formattedQuestions);
+      } else {
+        console.error('Failed to fetch questions');
+      }
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+    } finally {
+      setLoading(false); // Hide loading spinner after fetch is complete
+    }
+
   };
   if (loading) {
     return (
